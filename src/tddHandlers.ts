@@ -123,7 +123,9 @@ export function listTDDTools() {
         description: 'Get current TDD cycle status and next recommended action. Use this frequently to stay oriented.',
         inputSchema: {
           type: 'object',
-          properties: {}
+          properties: {
+            _unused: { type: 'boolean', description: 'Unused parameter (can be omitted)', default: false }
+          }
         }
       },
       {
@@ -193,7 +195,8 @@ export function listTDDTools() {
           type: 'object',
           properties: {
             files: { type: 'array', items: { type: 'string' }, description: 'Specific files to analyze' },
-            threshold: { type: 'number', description: 'Minimum coverage percentage' }
+            threshold: { type: 'number', description: 'Minimum coverage percentage' },
+            _unused: { type: 'boolean', description: 'Unused parameter (can be omitted)', default: false }
           }
         }
       },
@@ -224,7 +227,11 @@ export function listTDDTools() {
 
 export async function handleTDDTool(params: { name: string; arguments?: any }): Promise<any> {
   const name = params.name;
-  const args = params.arguments || {};
+  // Ensure args is always an object, handle edge cases
+  let args = params.arguments;
+  if (!args || typeof args !== 'object' || Array.isArray(args)) {
+    args = {};
+  }
 
   try {
     switch (name) {
