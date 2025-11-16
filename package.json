@@ -6,6 +6,7 @@
   "scripts": {
     "clean": "npx rimraf dist/ node_modules/",
     "build": "tsc",
+    "build:watch": "tsc --watch",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "demo": "node dist/demo-client.js",

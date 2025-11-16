@@ -14,23 +14,23 @@ export async function runTests(
   const framework = process.env.TEST_FRAMEWORK || 'jest';
   const startTime = Date.now();
   
+  let command = '';
+  
+  switch (framework.toLowerCase()) {
+    case 'jest':
+      command = `npx jest ${testPattern || ''} ${coverage ? '--coverage' : ''} --json --outputFile=/tmp/jest-output.json`;
+      break;
+    case 'vitest':
+      command = `npx vitest run ${testPattern || ''} ${coverage ? '--coverage' : ''} --reporter=json --outputFile=/tmp/vitest-output.json`;
+      break;
+    case 'mocha':
+      command = `npx mocha ${testPattern || ''} ${coverage ? '--require nyc' : ''} --reporter json > /tmp/mocha-output.json`;
+      break;
+    default:
+      command = `npx ${framework} ${testPattern || ''}`;
+  }
+  
   try {
-    let command = '';
-    
-    switch (framework.toLowerCase()) {
-      case 'jest':
-        command = `npx jest ${testPattern || ''} ${coverage ? '--coverage' : ''} --json --outputFile=/tmp/jest-output.json`;
-        break;
-      case 'vitest':
-        command = `npx vitest run ${testPattern || ''} ${coverage ? '--coverage' : ''} --reporter=json --outputFile=/tmp/vitest-output.json`;
-        break;
-      case 'mocha':
-        command = `npx mocha ${testPattern || ''} ${coverage ? '--require nyc' : ''} --reporter json > /tmp/mocha-output.json`;
-        break;
-      default:
-        command = `npx ${framework} ${testPattern || ''}`;
-    }
-    
     const { stdout, stderr } = await execAsync(command, { 
       cwd: process.cwd(),
       timeout: 300000 // 5 minutes
@@ -39,7 +39,7 @@ export async function runTests(
     const duration = Date.now() - startTime;
     const output = stdout + stderr;
     
-    // Parse test results based on framework
+    // Parse test results - command succeeded (exit code 0)
     const result = await parseTestOutput(framework, output, duration);
     
     if (coverage) {
@@ -49,7 +49,7 @@ export async function runTests(
     return result;
     
   } catch (error: any) {
-    // Tests failed, but we still want to parse the results
+    // Command failed (non-zero exit code) - usually means tests failed
     const duration = Date.now() - startTime;
     const output = error.stdout || error.stderr || error.message;
     

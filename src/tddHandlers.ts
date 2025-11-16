@@ -365,7 +365,12 @@ async function handleWriteTest(args: any): Promise<any> {
             `**Category**: ${test.category}\n` +
             `**Expected to Fail**: ${test.expectedToFail}\n\n` +
             `**Phase**: RED (tests should fail)\n` +
-            `**Next Action**: Run tests with tdd_run_tests to verify they fail`
+            `**Next Action**: Run tests with \`tdd_run_tests expectation=fail\` to verify they fail\n\n` +
+            `💡 **TDD Tip**: A good failing test should:\n` +
+            `- Test functionality that doesn't exist yet\n` +
+            `- Have clear, specific assertions\n` +
+            `- Fail with a meaningful error message\n` +
+            `- Not pass accidentally due to implementation leaking through`
     }]
   };
 }
@@ -407,6 +412,9 @@ async function handleRunTests(args: any): Promise<any> {
   let statusIcon = expectationMet ? '✅' : '⚠️';
   let message = `${statusIcon} Tests ${actualOutcome === 'fail' ? 'failed' : 'passed'} ${expectationMet ? '(as expected)' : '(unexpected!)'}\n\n`;
   
+  if (args.testPattern) {
+    message += `**Test Pattern**: ${args.testPattern}\n`;
+  }
   message += `**Tests Run**: ${result.testsRun}\n`;
   message += `**Passed**: ${result.testsPassed}\n`;
   message += `**Failed**: ${result.testsFailed}\n`;
@@ -416,6 +424,26 @@ async function handleRunTests(args: any): Promise<any> {
   
   if (!expectationMet) {
     message += `⚠️ **Warning**: Expected tests to ${expectation} but they ${actualOutcome}ed!\n\n`;
+    
+    if (expectation === 'fail' && actualOutcome === 'pass') {
+      message += `**TDD Violation**: Tests should fail in RED phase before implementation!\n\n`;
+      message += `**Possible causes**:\n`;
+      message += `1. Test is not actually testing the new feature (test is too simple)\n`;
+      message += `2. Implementation already exists for what you're testing\n`;
+      message += `3. Test has a logic error and always passes\n`;
+      message += `4. Wrong test file or pattern being executed\n\n`;
+      message += `**Recommended actions**:\n`;
+      message += `- Review the test code to ensure it properly exercises the new feature\n`;
+      message += `- Verify the test is checking for behavior that doesn't exist yet\n`;
+      message += `- Check that you're testing the right file/function\n`;
+      message += `- Consider removing or commenting out existing implementation\n\n`;
+    } else if (expectation === 'pass' && actualOutcome === 'fail') {
+      message += `**Implementation Issue**: Tests are still failing after implementation!\n\n`;
+      message += `**Recommended actions**:\n`;
+      message += `- Review the implementation to address failing tests\n`;
+      message += `- Check the failures below for specific errors\n`;
+      message += `- Ensure implementation matches test expectations\n\n`;
+    }
   }
   
   if (result.failures && result.failures.length > 0) {
@@ -424,6 +452,12 @@ async function handleRunTests(args: any): Promise<any> {
       message += `- ${f.testName}: ${f.error}\n`;
     });
     message += '\n';
+  }
+  
+  // Show test output for debugging if expectation not met
+  if (!expectationMet && result.output && result.testsRun > 0) {
+    const outputLines = result.output.split('\n').slice(-20).join('\n');
+    message += `**Test Output (last 20 lines)**:\n\`\`\`\n${outputLines}\n\`\`\`\n\n`;
   }
   
   if (result.coverage) {
