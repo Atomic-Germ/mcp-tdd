@@ -17,13 +17,13 @@
     "@modelcontextprotocol/sdk": "^0.4.0",
     "axios": "^1.6.0",
     "zod": "^3.22.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "vitest": "^4.0.9"
   },
   "keywords": ["mcp", "tdd", "test-driven-development", "testing", "ai"],
   "author": "Atomic-Germ",
