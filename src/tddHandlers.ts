@@ -40,6 +40,7 @@ import {
   createCheckpointSnapshot,
   restoreCheckpointSnapshot
 } from './tddUtils.js';
+import { mergeTestIntoFile } from './testFileWriter.js';
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 
@@ -337,15 +338,7 @@ async function handleWriteTest(args: any): Promise<any> {
   
   // Write test to file
   try {
-    const existingContent = await fileExists(args.testFile) 
-      ? (await import('fs/promises')).readFile(args.testFile, 'utf-8')
-      : '';
-    
-    const newContent = existingContent 
-      ? `${existingContent}\n\n${args.testCode}`
-      : args.testCode;
-    
-    await writeFile(args.testFile, newContent);
+    await mergeTestIntoFile(args.testFile, args.testCode);
   } catch (error: any) {
     return {
       content: [{
