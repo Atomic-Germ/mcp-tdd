@@ -10,7 +10,6 @@ import {
   Refactoring,
   Checkpoint,
   TDDConfig,
-  TDDPhase
 } from './tddTypes.js';
 
 const STATE_DIR = process.env.TDD_STATE_DIR || path.join(os.tmpdir(), 'mcp-tdd-state');
@@ -27,16 +26,18 @@ function registerCleanupHandler(handler: () => Promise<void>): void {
 // Cleanup function for graceful shutdown
 export async function cleanup(): Promise<void> {
   console.error('Cleaning up TDD state...');
-  
+
   try {
     // Save current state before cleanup
     await saveState();
-    
+
     // Run all registered cleanup handlers
-    await Promise.all(cleanupHandlers.map(handler => 
-      handler().catch(error => console.error('Cleanup handler failed:', error))
-    ));
-    
+    await Promise.all(
+      cleanupHandlers.map(handler =>
+        handler().catch(error => console.error('Cleanup handler failed:', error)),
+      ),
+    );
+
     // Clean up temp directories if in test environment
     if (process.env.NODE_ENV === 'test' || process.env.TDD_STATE_DIR?.includes('test')) {
       try {
@@ -82,8 +83,8 @@ const defaultConfig: TDDConfig = {
   testPatterns: {
     unit: '**/*.test.ts',
     integration: '**/*.integration.ts',
-    e2e: '**/*.e2e.ts'
-  }
+    e2e: '**/*.e2e.ts',
+  },
 };
 
 let state: TDDState = {
@@ -92,7 +93,7 @@ let state: TDDState = {
   implementations: {},
   refactorings: {},
   checkpoints: {},
-  config: defaultConfig
+  config: defaultConfig,
 };
 
 export async function initializeState(): Promise<void> {
@@ -103,7 +104,7 @@ export async function initializeState(): Promise<void> {
       const parsed = JSON.parse(data);
       state = {
         ...parsed,
-        config: { ...defaultConfig, ...parsed.config }
+        config: { ...defaultConfig, ...parsed.config },
       };
     }
   } catch (error) {
@@ -116,7 +117,7 @@ export async function saveState(): Promise<void> {
     // Use current environment variable if set, otherwise use default
     const currentStateDir = process.env.TDD_STATE_DIR || STATE_DIR;
     const currentStateFile = path.join(currentStateDir, 'tdd-state.json');
-    
+
     await fs.mkdir(currentStateDir, { recursive: true });
     await fs.writeFile(currentStateFile, JSON.stringify(state, null, 2), 'utf-8');
   } catch (error) {
@@ -140,18 +141,18 @@ export function setActiveCycle(cycle: TDDCycle): void {
 export function updateCycle(cycleId: string, updates: Partial<TDDCycle>): TDDCycle | undefined {
   const cycle = state.cycles[cycleId];
   if (!cycle) return undefined;
-  
+
   const updated = {
     ...cycle,
     ...updates,
-    updatedAt: new Date()
+    updatedAt: new Date(),
   };
-  
+
   state.cycles[cycleId] = updated;
   if (state.activeCycle?.id === cycleId) {
     state.activeCycle = updated;
   }
-  
+
   return updated;
 }
 
@@ -162,7 +163,7 @@ export function addTest(test: TDDTest): void {
 export function updateTest(testId: string, updates: Partial<TDDTest>): TDDTest | undefined {
   const test = state.tests[testId];
   if (!test) return undefined;
-  
+
   const updated = { ...test, ...updates };
   state.tests[testId] = updated;
   return updated;
@@ -221,13 +222,13 @@ const tempFiles = new Set<string>();
 
 export function registerTempFile(filePath: string): void {
   tempFiles.add(filePath);
-  
+
   // Register cleanup handler for this file
   registerCleanupHandler(async () => {
     try {
       await fs.unlink(filePath);
       tempFiles.delete(filePath);
-    } catch (error) {
+    } catch {
       // File might already be deleted, that's ok
     }
   });
@@ -250,7 +251,7 @@ export async function healthCheck(): Promise<{
 }> {
   const currentStateDir = process.env.TDD_STATE_DIR || STATE_DIR;
   const currentStateFile = path.join(currentStateDir, 'tdd-state.json');
-  
+
   let stateFileExists = false;
   try {
     await fs.access(currentStateFile);
@@ -258,11 +259,11 @@ export async function healthCheck(): Promise<{
   } catch {
     // File doesn't exist
   }
-  
+
   return {
     stateDir: currentStateDir,
     stateFileExists,
     tempFilesCount: tempFiles.size,
-    activeCycle: !!state.activeCycle
+    activeCycle: !!state.activeCycle,
   };
 }
