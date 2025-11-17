@@ -173,6 +173,19 @@ export class TDDServer {
           required: [],
         },
       },
+      {
+        name: 'tdd_analyze_test_quality',
+        description:
+          'Analyze test quality and receive actionable feedback on naming, structure, and assertions. Evaluates compliance with best practices like AAA pattern.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            testCode: { type: 'string', description: 'The test code to analyze' },
+            testName: { type: 'string', description: 'The name of the test' },
+          },
+          required: ['testCode', 'testName'],
+        },
+      },
     ];
   }
 }

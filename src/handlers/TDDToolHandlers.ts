@@ -388,4 +388,26 @@ export class TDDToolHandlers {
 
     return 'Run tests to determine next step (tdd_run_tests)';
   }
+
+  async handleAnalyzeTestQuality(args: any): Promise<string> {
+    const { testCode, testName } = args;
+
+    if (!testCode || !testName) {
+      throw new Error('testCode and testName are required');
+    }
+
+    const { TestQualityAnalyzer } = await import('../services/TestQualityAnalyzer.js');
+    const analyzer = new TestQualityAnalyzer();
+    const result = analyzer.analyzeTest(testCode, testName);
+
+    return JSON.stringify(
+      {
+        success: true,
+        message: 'Test quality analysis complete',
+        analysis: result,
+      },
+      null,
+      2,
+    );
+  }
 }

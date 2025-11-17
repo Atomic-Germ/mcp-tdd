@@ -64,6 +64,9 @@ async function main() {
         case 'tdd_get_failure_details':
           result = await handlers.handleGetFailureDetails();
           break;
+        case 'tdd_analyze_test_quality':
+          result = await handlers.handleAnalyzeTestQuality(args);
+          break;
         default:
           throw new Error(`Unknown tool: ${name}`);
       }
