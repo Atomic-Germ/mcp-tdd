@@ -5,6 +5,7 @@ import { writeFile, formatTestOutput, generateCycleSummary } from '../utils/file
 export class TDDToolHandlers {
   private stateManager: TDDStateManager;
   private testRunner: TestRunner;
+  private lastTestResult: any;
 
   constructor(stateManager: TDDStateManager, testRunner: TestRunner) {
     this.stateManager = stateManager;
@@ -129,25 +130,21 @@ export class TDDToolHandlers {
       nextStep,
     };
 
-    // Add failure details hint when in GREEN phase with unexpected failures
-    if (
-      cycle.phase === 'green' &&
-      !result.success &&
-      result.failures &&
-      result.failures.length > 0
-    ) {
-      // For single failure in GREEN phase, provide detailed feedback directly
+    // Add failure details when available
+    if (result.failures && result.failures.length > 0) {
       if (result.failures.length === 1) {
         const singleFailure = result.failures[0];
-        response.singleFailure = {
+        response.failureDetails = {
           testName: singleFailure.testName,
           error: singleFailure.error,
           verboseOutput: singleFailure.verboseOutput,
           suggestion: singleFailure.suggestion,
         };
       } else {
-        response.failureHint =
-          'Tests unexpectedly failed in GREEN phase. Use tdd_get_failure_details to see what went wrong.';
+        response.failureSummary = result.failures.map((f: any) => ({
+          testName: f.testName,
+          error: f.error,
+        }));
       }
     }
 
@@ -160,17 +157,17 @@ export class TDDToolHandlers {
       throw new Error('No active TDD cycle. Run tdd_init_cycle first.');
     }
 
-    const lastResult = (this as any).lastTestResult;
     if (
-      !lastResult ||
-      lastResult.success ||
-      !lastResult.failures ||
-      lastResult.failures.length === 0
+      !this.lastTestResult ||
+      this.lastTestResult.success ||
+      !this.lastTestResult.failures ||
+      this.lastTestResult.failures.length === 0
     ) {
       return JSON.stringify(
         {
           success: true,
           message: 'No failing tests to report',
+          details: 'Run tests first with tdd_run_tests to capture failure details.',
         },
         null,
         2,
@@ -180,8 +177,9 @@ export class TDDToolHandlers {
     return JSON.stringify(
       {
         success: true,
-        failureCount: lastResult.failed,
-        failures: lastResult.failures,
+        failureCount: this.lastTestResult.failed,
+        totalTests: this.lastTestResult.total,
+        failures: this.lastTestResult.failures,
         note: 'These failures indicate what needs to be fixed in the implementation. Use this feedback to guide your fix.',
       },
       null,
