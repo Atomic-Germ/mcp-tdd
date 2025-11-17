@@ -9,7 +9,7 @@ export class TestRunner {
     testFramework: string,
     testPattern?: string,
     expectation?: 'pass' | 'fail',
-  ): Promise<TestResult> {
+  ): Promise<TestResult & { expectationsMet: boolean }> {
     try {
       const command = this.buildTestCommand(testFramework, testPattern);
       const startTime = Date.now();
@@ -24,16 +24,16 @@ export class TestRunner {
 
         if (expectation === 'fail' && result.success) {
           return {
-            success: false,
-            passed: result.passed,
-            failed: result.failed,
-            total: result.total,
+            ...result,
+            expectationsMet: false,
             output: output + '\n\nWarning: Tests were expected to fail but passed.',
-            duration,
           };
         }
 
-        return result;
+        return {
+          ...result,
+          expectationsMet: expectation ? result.success === (expectation === 'pass') : true,
+        };
       } catch (error: any) {
         const duration = Date.now() - startTime;
         const output = error.stdout + error.stderr;
@@ -42,16 +42,16 @@ export class TestRunner {
 
         if (expectation === 'fail') {
           return {
-            success: true,
-            passed: result.passed,
-            failed: result.failed,
-            total: result.total,
+            ...result,
+            expectationsMet: true,
             output: output + '\n\nTests failed as expected (RED phase).',
-            duration,
           };
         }
 
-        return result;
+        return {
+          ...result,
+          expectationsMet: false,
+        };
       }
     } catch (error) {
       return {
@@ -60,6 +60,7 @@ export class TestRunner {
         failed: 0,
         total: 0,
         output: error instanceof Error ? error.message : String(error),
+        expectationsMet: false,
       };
     }
   }

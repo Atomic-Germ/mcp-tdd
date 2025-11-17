@@ -83,6 +83,23 @@ export class TDDToolHandlers {
     });
 
     let nextStep = '';
+    let expectationsMetMessage = '';
+
+    // Check if expectations were met and provide clear feedback
+    if (expectation) {
+      if (!result.expectationsMet) {
+        expectationsMetMessage =
+          expectation === 'pass'
+            ? `⚠️  EXPECTATION NOT MET: Tests were expected to pass but ${result.failed} test(s) failed.`
+            : `⚠️  EXPECTATION NOT MET: Tests were expected to fail but all tests passed.`;
+      } else {
+        expectationsMetMessage =
+          expectation === 'pass'
+            ? '✓ Tests passed as expected.'
+            : '✓ Tests failed as expected (RED phase).';
+      }
+    }
+
     if (cycle.phase === 'red' && !result.success) {
       nextStep = 'Tests are failing as expected. Proceed to GREEN phase with tdd_implement';
     } else if (cycle.phase === 'green' && result.success) {
@@ -95,14 +112,17 @@ export class TDDToolHandlers {
 
     return JSON.stringify(
       {
-        success: true,
+        success: result.expectationsMet,
         result: {
           passed: result.passed,
           failed: result.failed,
           total: result.total,
           duration: result.duration,
           testSuccess: result.success,
+          expectationsMet: result.expectationsMet,
         },
+        expectation: expectation || 'none',
+        expectationsMetMessage,
         output: formatTestOutput(result),
         nextStep,
       },
