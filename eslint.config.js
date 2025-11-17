@@ -1,47 +1,41 @@
 import js from '@eslint/js';
-import typescript from '@typescript-eslint/eslint-plugin';
-import typescriptParser from '@typescript-eslint/parser';
-import prettier from 'eslint-config-prettier';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsparser from '@typescript-eslint/parser';
+import prettier from 'eslint-plugin-prettier';
 
 export default [
   js.configs.recommended,
   {
     files: ['src/**/*.ts', 'test/**/*.ts'],
     languageOptions: {
-      parser: typescriptParser,
+      parser: tsparser,
       parserOptions: {
-        ecmaVersion: 2022,
+        ecmaVersion: 2020,
         sourceType: 'module',
-        project: './tsconfig.json',
       },
       globals: {
         console: 'readonly',
         process: 'readonly',
-        setTimeout: 'readonly',
-        Buffer: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
-        global: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
       },
     },
     plugins: {
-      '@typescript-eslint': typescript,
+      '@typescript-eslint': tseslint,
+      prettier: prettier,
     },
     rules: {
-      ...typescript.configs.recommended.rules,
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-      ],
       '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
-      'no-case-declarations': 'off', // Allow declarations in case blocks
+      'prettier/prettier': 'error',
     },
   },
-  {
-    ignores: ['dist/', 'node_modules/', '*.js', '*.d.ts', 'coverage/'],
-  },
-  prettier,
 ];

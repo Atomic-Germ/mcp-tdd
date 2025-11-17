@@ -3,6 +3,7 @@
 ## Example 1: Simple Email Validation
 
 ### Visual Flow
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ STEP 1: Initialize Cycle                                   │
@@ -306,11 +307,11 @@ CYCLE 4: Integration
   criteria: ["simplicity", "scalability", "testability"]
 }
    ↓
-[ANALYSIS] → 
+[ANALYSIS] →
   Approach 1: High simplicity, low scalability
   Approach 2: Low simplicity, high scalability
   Approach 3: Medium on both, best testability
-  
+
   Recommendation: Start with LRU Cache (approach 3)
   Reason: Balances testability with practical features
    ↓
@@ -342,50 +343,58 @@ CYCLE 4: Integration
 ## Tool Usage Patterns
 
 ### Frequent Tools (Use Often)
+
 - `tdd_status` - Check before each action
 - `tdd_run_tests` - After writing tests/code
 - `tdd_write_test` - Core of RED phase
 
 ### Periodic Tools (Use When Needed)
+
 - `tdd_checkpoint` - Before risky changes
 - `tdd_coverage` - End of cycle or phase
 - `tdd_refactor` - When code needs improvement
 
 ### Occasional Tools (Use Sparingly)
+
 - `tdd_consult` - Complex design decisions
 - `tdd_compare_approaches` - Major architectural choices
 - `tdd_rollback` - When refactoring fails
 
 ### Once Per Cycle
+
 - `tdd_init_cycle` - Start of work
 - `tdd_complete_cycle` - End of work
 
 ## Common Patterns
 
 ### Pattern 1: Test-First Always
+
 ```
-tdd_status → tdd_write_test → tdd_run_tests(fail) → 
+tdd_status → tdd_write_test → tdd_run_tests(fail) →
 tdd_implement → tdd_run_tests(pass) → tdd_status
 ```
 
 ### Pattern 2: Safe Refactoring
+
 ```
-tdd_run_tests(pass) → tdd_checkpoint → tdd_refactor → 
+tdd_run_tests(pass) → tdd_checkpoint → tdd_refactor →
 tdd_run_tests(pass) → (if fail: tdd_rollback)
 ```
 
 ### Pattern 3: Incremental Development
+
 ```
 Loop:
-  tdd_write_test → tdd_run_tests(fail) → 
+  tdd_write_test → tdd_run_tests(fail) →
   tdd_implement → tdd_run_tests(pass)
 Until: Feature complete
 Then: tdd_complete_cycle
 ```
 
 ### Pattern 4: Design Consultation
+
 ```
-tdd_status → tdd_compare_approaches → tdd_consult → 
+tdd_status → tdd_compare_approaches → tdd_consult →
 Decision made → Continue with TDD
 ```
 

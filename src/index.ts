@@ -1,55 +1,106 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { listTDDTools, handleTDDTool } from "./tddHandlers.js";
-import { initializeState } from "./tddState.js";
+#!/usr/bin/env node
 
-const server = new Server({
-  name: "mcp-tdd",
-  version: "1.0.0",
-});
-
-// Expose TDD tools via MCP request handlers
-server.setRequestHandler(ListToolsRequestSchema, async () => listTDDTools());
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  // Normalize arguments - handle cases where arguments might be undefined, null, or empty
-  let args: any = request.params.arguments;
-  
-  // Handle various edge cases
-  if (args === undefined || args === null) {
-    args = {};
-  } else if (typeof args !== 'object' || Array.isArray(args)) {
-    // If it's not an object or is an array, use empty object
-    console.error(`[WARN] Unexpected arguments type: ${typeof args}, using empty object`);
-    args = {};
-  }
-  
-  const params = {
-    name: request.params.name,
-    arguments: args
-  };
-  
-  // Log for debugging (can be disabled in production)
-  if (process.env.TDD_DEBUG) {
-    console.error(`[DEBUG] Tool call: ${params.name}, args:`, JSON.stringify(params.arguments));
-  }
-  
-  return handleTDDTool(params);
-});
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { TDDServer } from './server.js';
+import { TDDStateManager } from './services/TDDStateManager.js';
+import { TestRunner } from './services/TestRunner.js';
+import { TDDToolHandlers } from './handlers/TDDToolHandlers.js';
 
 async function main() {
-  // Initialize TDD state
-  try {
-    await initializeState();
-    console.error("TDD state initialized");
-  } catch (e) {
-    console.error("Failed to initialize TDD state:", e);
-  }
-  
+  const tddServer = new TDDServer();
+  const stateManager = new TDDStateManager();
+  const testRunner = new TestRunner();
+  const handlers = new TDDToolHandlers(stateManager, testRunner);
+
+  const server = new Server({
+    name: tddServer.name,
+    version: tddServer.version,
+  });
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    const tools = tddServer.listTools();
+    return { tools };
+  });
+
+  server.setRequestHandler(CallToolRequestSchema, async request => {
+    const { name, arguments: args } = request.params;
+
+    try {
+      let result: string;
+
+      switch (name) {
+        case 'tdd_init_cycle':
+          result = await handlers.handleInitCycle(args);
+          break;
+        case 'tdd_write_test':
+          result = await handlers.handleWriteTest(args);
+          break;
+        case 'tdd_run_tests':
+          result = await handlers.handleRunTests(args);
+          break;
+        case 'tdd_implement':
+          result = await handlers.handleImplement(args);
+          break;
+        case 'tdd_refactor':
+          result = await handlers.handleRefactor(args);
+          break;
+        case 'tdd_status':
+          result = await handlers.handleStatus();
+          break;
+        case 'tdd_complete_cycle':
+          result = await handlers.handleCompleteCycle(args);
+          break;
+        case 'tdd_checkpoint':
+          result = await handlers.handleCheckpoint(args);
+          break;
+        case 'tdd_rollback':
+          result = await handlers.handleRollback(args);
+          break;
+        case 'tdd_coverage':
+          result = await handlers.handleCoverage();
+          break;
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result,
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                success: false,
+                error: errorMessage,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("MCP TDD server running on stdio");
+
+  console.error('MCP TDD server running on stdio');
 }
 
-main().catch(console.error);
+main().catch(error => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

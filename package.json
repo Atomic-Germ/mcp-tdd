@@ -1,9 +1,11 @@
 {
   "name": "mcp-tdd",
-  "version": "1.0.0",
-  "type": "module",
+  "version": "2.0.0",
   "description": "MCP server for structured Test-Driven Development workflows",
   "main": "dist/index.js",
+  "bin": {
+    "mcp-tdd": "dist/index.js"
+  },
   "scripts": {
     "clean": "npx rimraf dist/ node_modules/",
     "build": "tsc",
@@ -17,8 +19,8 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/ test/",
     "lint:fix": "eslint src/ test/ --fix",
-    "format": "prettier --write src/ test/ *.md *.json *.yml",
-    "format:check": "prettier --check src/ test/ *.md *.json *.yml",
+    "format": "prettier --write src/ test/ *.md *.json",
+    "format:check": "prettier --check src/ test/ *.md *.json",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
     "ci": "npm install && npm run build && npm test",
