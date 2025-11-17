@@ -1,4 +1,4 @@
-name: MCP TDD CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -6,55 +6,124 @@ on:
   pull_request:
     branches: [ main, master ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-test:
-    runs-on: macos-latest
-    
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
+  lint:
+    name: 🔍 Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Setup Node.js ${{ matrix.node-version }}
+        
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-      
+          node-version: '20'
+          cache: 'pnpm'
+          
       - name: Install dependencies
-        run: |
-          brew install pnpm
-          pnpm ci
-      
-      - name: Build TypeScript
-        run: pnpm build
-      
+        run: pnpm install --frozen-lockfile
+        
+      - name: Lint code
+        run: pnpm run lint
+        
+      - name: Check formatting
+        run: pnpm run format:check
+
+  typecheck:
+    name: 🔧 Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Type check
+        run: pnpm run typecheck
+
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
       - name: Run tests
-        run: pnpm test
-      
+        run: pnpm run test
+        
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
+
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [lint, typecheck, test]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Build project
+        run: pnpm run build
+        
       - name: Verify TDD modules
         run: |
           echo "Checking compiled TDD modules..."
           ls -lh dist/tdd*.js
           echo "✅ All TDD modules present"
-  
-  lint:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm ci
-      
-      - name: Check TypeScript
-        run: npx tsc --noEmit
