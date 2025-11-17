@@ -23,7 +23,7 @@
     "format:check": "prettier --check src/ test/ *.md *.json",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
-    "ci": "npm install && npm run build && npm test",
+    "ci": "pnpm install && pnpm run build && pnpm test",
     "reset-state": "bash scripts/reset-state.sh",
     "prepare": "husky"
   },
