@@ -1,18 +1,35 @@
-# MCP TDD Quickstart Guide
+# MCP TDD Server - Quick Start Guide
 
-This guide will help you get started with the MCP TDD server in under 5 minutes.
+Get structured Test-Driven Development workflows running in under 5 minutes!
 
-## Installation
+## Prerequisites
+
+- Node.js 18+
+- npm or pnpm
+- An MCP-compatible client (e.g., Claude Desktop)
+- A test framework (Vitest, Jest, or Mocha)
+
+## 1. Installation
 
 ```bash
+# Clone and setup
+git clone https://github.com/Atomic-Germ/mcp-tdd.git
 cd mcp-tdd
 npm install
 npm run build
 ```
 
-## Configuration
+## 2. Configure MCP Client
 
-Add to your MCP client configuration (e.g., `~/.config/claude/mcp.json`):
+### Claude Desktop
+
+Edit your configuration file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/claude/claude_desktop_config.json`
+
+Add the server:
 
 ```json
 {
@@ -26,9 +43,25 @@ Add to your MCP client configuration (e.g., `~/.config/claude/mcp.json`):
 }
 ```
 
-## Basic TDD Workflow
+### Other MCP Clients
 
-### 1. Initialize a Cycle
+Use these connection details:
+
+- **Command**: `node`
+- **Args**: `["/path/to/mcp-tdd/dist/index.js"]`
+- **Protocol**: stdio
+
+## 3. Verify Setup
+
+1. Restart your MCP client
+2. Look for "tdd" in available tools
+3. You should see 9 TDD workflow tools available
+
+## 4. First TDD Cycle
+
+Follow the Red-Green-Refactor cycle:
+
+### Step 1: Initialize (🚀)
 
 ```
 Use tool: tdd_init_cycle
@@ -40,7 +73,7 @@ Parameters:
 - language: "typescript"
 ```
 
-### 2. Write a Failing Test (RED)
+### Step 2: Write Failing Test - RED (🔴)
 
 ```
 Use tool: tdd_write_test
@@ -60,7 +93,7 @@ Parameters:
 - expectedToFail: true
 ```
 
-### 3. Run Tests (Verify RED)
+### Step 3: Verify Test Fails (🔴)
 
 ```
 Use tool: tdd_run_tests
@@ -69,7 +102,7 @@ Parameters:
 - expectation: "fail"
 ```
 
-### 4. Implement (GREEN)
+### Step 4: Implement Code - GREEN (🟢)
 
 ```
 Use tool: tdd_implement
@@ -82,7 +115,7 @@ Parameters:
   }
 ```
 
-### 5. Run Tests Again (Verify GREEN)
+### Step 5: Verify Test Passes (🟢)
 
 ```
 Use tool: tdd_run_tests
@@ -91,44 +124,134 @@ Parameters:
 - expectation: "pass"
 ```
 
-### 6. Complete Cycle
+### Step 6: Complete Cycle (✅)
 
 ```
 Use tool: tdd_complete_cycle
 
 Parameters:
-- notes: "Successfully added addition functionality"
+- notes: "Successfully implemented addition functionality using TDD"
 ```
 
-## Verification
+## 5. Verify Everything Works
 
-```bash
-# Run the tests manually to verify
-npm test
-```
+✅ **Cycle Initialized**: TDD cycle starts properly  
+✅ **Tests Run**: Test framework executes correctly  
+✅ **RED Phase**: Failing tests are detected  
+✅ **GREEN Phase**: Implementation makes tests pass  
+✅ **State Tracking**: TDD cycle state is maintained
 
-## Next Steps
+## Available Tools
 
-- Check out the full README.md for advanced features
-- Explore checkpoint/rollback functionality
-- Try the refactor phase for code improvements
+| Tool                 | Phase    | Purpose                   |
+| -------------------- | -------- | ------------------------- |
+| `tdd_init_cycle`     | Start    | Initialize new TDD cycle  |
+| `tdd_write_test`     | RED      | Write failing tests       |
+| `tdd_run_tests`      | All      | Execute tests             |
+| `tdd_implement`      | GREEN    | Write implementation code |
+| `tdd_refactor`       | REFACTOR | Improve code quality      |
+| `tdd_status`         | All      | Check cycle status        |
+| `tdd_complete_cycle` | End      | Finalize cycle            |
+| `tdd_checkpoint`     | All      | Save current state        |
+| `tdd_rollback`       | All      | Restore previous state    |
 
-## Troubleshooting
+## Common Issues
 
-### Tests not running?
+### Tests not running
 
-Make sure you have a test framework installed:
+Make sure you have a test framework:
 
 ```bash
 npm install -D vitest  # or jest, mocha
 ```
 
-### Build errors?
-
-Clean and rebuild:
+### Build errors
 
 ```bash
 npm run clean
 npm install
 npm run build
 ```
+
+### MCP client can't find tools
+
+- Check the absolute path in configuration
+- Restart your MCP client after config changes
+- Verify build succeeded: `ls -la dist/`
+
+## Configuration
+
+### Test Framework Selection
+
+Set your preferred framework during cycle initialization:
+
+```json
+{
+  "testFramework": "vitest", // or "jest", "mocha"
+  "language": "typescript" // or "javascript"
+}
+```
+
+### Project Setup
+
+Ensure your project has the proper structure:
+
+```
+your-project/
+├── src/           # Implementation code
+├── test/          # Test files
+├── package.json   # Dependencies
+└── tsconfig.json  # TypeScript config (if using TS)
+```
+
+## Advanced Features
+
+### Checkpoints & Rollback
+
+```
+# Save current state
+Use: tdd_checkpoint
+Parameters: { description: "Working addition feature" }
+
+# Rollback if needed
+Use: tdd_rollback
+Parameters: { checkpointId: "checkpoint-id" }
+```
+
+### Test Coverage
+
+```
+Use: tdd_coverage
+Parameters: { path: "./src" }
+```
+
+### Refactoring Phase
+
+```
+Use: tdd_refactor
+Parameters:
+- file: "src/calculator.ts"
+- code: "// Improved implementation"
+- rationale: "Better error handling and type safety"
+```
+
+## Next Steps
+
+- 📖 **Full Documentation**: See [README.md](./README.md)
+- 🏗️ **Architecture**: Read [ARCHITECTURE.md](./ARCHITECTURE.md)
+- 📋 **Workflows**: Check [WORKFLOWS.md](./WORKFLOWS.md)
+- 🤝 **Contributing**: See [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+## Integration with Other Tools
+
+TDD works great with:
+
+- **mcp-consult** - Get AI guidance on test strategies
+- **mcp-optimist** - Optimize code during refactor phase
+- **Your IDE** - Use TDD tools within your development environment
+
+---
+
+**🎉 You're ready to practice Test-Driven Development with AI assistance!**
+
+Need help? Check our [documentation index](./DOCUMENTATION_INDEX.md) or [open an issue](https://github.com/Atomic-Germ/mcp-tdd/issues).
