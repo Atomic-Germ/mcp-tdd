@@ -16,6 +16,61 @@ import {
 const STATE_DIR = process.env.TDD_STATE_DIR || path.join(os.tmpdir(), 'mcp-tdd-state');
 const STATE_FILE = path.join(STATE_DIR, 'tdd-state.json');
 
+// Track cleanup handlers
+const cleanupHandlers: Array<() => Promise<void>> = [];
+
+// Register cleanup for graceful shutdown
+function registerCleanupHandler(handler: () => Promise<void>): void {
+  cleanupHandlers.push(handler);
+}
+
+// Cleanup function for graceful shutdown
+export async function cleanup(): Promise<void> {
+  console.error('Cleaning up TDD state...');
+  
+  try {
+    // Save current state before cleanup
+    await saveState();
+    
+    // Run all registered cleanup handlers
+    await Promise.all(cleanupHandlers.map(handler => 
+      handler().catch(error => console.error('Cleanup handler failed:', error))
+    ));
+    
+    // Clean up temp directories if in test environment
+    if (process.env.NODE_ENV === 'test' || process.env.TDD_STATE_DIR?.includes('test')) {
+      try {
+        const currentStateDir = process.env.TDD_STATE_DIR || STATE_DIR;
+        await fs.rm(currentStateDir, { recursive: true, force: true });
+        console.error('Cleaned up temp state directory:', currentStateDir);
+      } catch (error) {
+        console.error('Failed to clean up temp directory:', error);
+      }
+    }
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+  }
+}
+
+// Register process exit handlers
+if (typeof process !== 'undefined') {
+  process.on('SIGINT', async () => {
+    console.error('Received SIGINT, cleaning up...');
+    await cleanup();
+    process.exit(0);
+  });
+
+  process.on('SIGTERM', async () => {
+    console.error('Received SIGTERM, cleaning up...');
+    await cleanup();
+    process.exit(0);
+  });
+
+  process.on('beforeExit', async () => {
+    await cleanup();
+  });
+}
+
 const defaultConfig: TDDConfig = {
   testFramework: process.env.TEST_FRAMEWORK || 'jest',
   language: 'typescript',
@@ -58,8 +113,12 @@ export async function initializeState(): Promise<void> {
 
 export async function saveState(): Promise<void> {
   try {
-    await fs.mkdir(STATE_DIR, { recursive: true });
-    await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    // Use current environment variable if set, otherwise use default
+    const currentStateDir = process.env.TDD_STATE_DIR || STATE_DIR;
+    const currentStateFile = path.join(currentStateDir, 'tdd-state.json');
+    
+    await fs.mkdir(currentStateDir, { recursive: true });
+    await fs.writeFile(currentStateFile, JSON.stringify(state, null, 2), 'utf-8');
   } catch (error) {
     console.error('Failed to save TDD state:', error);
   }
@@ -155,4 +214,55 @@ export function updateConfig(updates: Partial<TDDConfig>): void {
 
 export function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+// Track temporary files for cleanup
+const tempFiles = new Set<string>();
+
+export function registerTempFile(filePath: string): void {
+  tempFiles.add(filePath);
+  
+  // Register cleanup handler for this file
+  registerCleanupHandler(async () => {
+    try {
+      await fs.unlink(filePath);
+      tempFiles.delete(filePath);
+    } catch (error) {
+      // File might already be deleted, that's ok
+    }
+  });
+}
+
+export function unregisterTempFile(filePath: string): void {
+  tempFiles.delete(filePath);
+}
+
+export function getTempFiles(): string[] {
+  return Array.from(tempFiles);
+}
+
+// Health check function
+export async function healthCheck(): Promise<{
+  stateDir: string;
+  stateFileExists: boolean;
+  tempFilesCount: number;
+  activeCycle: boolean;
+}> {
+  const currentStateDir = process.env.TDD_STATE_DIR || STATE_DIR;
+  const currentStateFile = path.join(currentStateDir, 'tdd-state.json');
+  
+  let stateFileExists = false;
+  try {
+    await fs.access(currentStateFile);
+    stateFileExists = true;
+  } catch {
+    // File doesn't exist
+  }
+  
+  return {
+    stateDir: currentStateDir,
+    stateFileExists,
+    tempFilesCount: tempFiles.size,
+    activeCycle: !!state.activeCycle
+  };
 }

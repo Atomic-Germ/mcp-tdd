@@ -1,5 +1,5 @@
 // TDD Handlers - implements all TDD tools
-import axios from 'axios';
+import { apiService } from './externalAPIService.js';
 import {
   TDDCycle,
   TDDTest,
@@ -41,8 +41,15 @@ import {
   restoreCheckpointSnapshot
 } from './tddUtils.js';
 import { mergeTestIntoFile } from './testFileWriter.js';
-
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+import {
+  validateTestExpectation,
+  createBasicTestMessage,
+  createExpectationWarning,
+  createFailureDetails,
+  createTestOutput,
+  createCoverageInfo,
+  TestRunResult
+} from './testExecutionUtils.js';
 
 export function listTDDTools() {
   return {
@@ -275,6 +282,27 @@ export async function handleTDDTool(params: { name: string; arguments?: any }): 
 }
 
 async function handleInitCycle(args: any): Promise<any> {
+  // Validate required fields
+  if (!args.feature) {
+    return {
+      content: [{
+        type: 'text',
+        text: '❌ Missing required field: feature'
+      }],
+      isError: true
+    };
+  }
+  
+  if (!args.description) {
+    return {
+      content: [{
+        type: 'text',
+        text: '❌ Missing required field: description'
+      }],
+      isError: true
+    };
+  }
+  
   const config = getConfig();
   
   const cycle: TDDCycle = {
@@ -300,7 +328,7 @@ async function handleInitCycle(args: any): Promise<any> {
   return {
     content: [{
       type: 'text',
-      text: `✅ TDD Cycle initialized!\n\n` +
+      text: `✅ TDD Cycle Initialized!\n\n` +
             `**Cycle ID**: ${cycle.id}\n` +
             `**Feature**: ${cycle.feature}\n` +
             `**Description**: ${cycle.description}\n` +
@@ -308,7 +336,8 @@ async function handleInitCycle(args: any): Promise<any> {
             `**Language**: ${cycle.language}\n` +
             `**Phase**: ${cycle.phase}\n\n` +
             `**Next Action**: ${determineNextAction(cycle.phase, 0, 0)}`
-    }]
+    }],
+    isError: false
   };
 }
 
@@ -319,6 +348,37 @@ async function handleWriteTest(args: any): Promise<any> {
       content: [{
         type: 'text',
         text: '❌ No active TDD cycle. Start one with tdd_init_cycle first.'
+      }],
+      isError: true
+    };
+  }
+  
+  // Validate required fields
+  if (!args.testFile || args.testFile.trim() === '') {
+    return {
+      content: [{
+        type: 'text',
+        text: '❌ Invalid or empty test file path'
+      }],
+      isError: true
+    };
+  }
+  
+  if (!args.testName) {
+    return {
+      content: [{
+        type: 'text',
+        text: '❌ Missing required field: testName'
+      }],
+      isError: true
+    };
+  }
+  
+  if (!args.testCode) {
+    return {
+      content: [{
+        type: 'text',
+        text: '❌ Missing required field: testCode'
       }],
       isError: true
     };
@@ -376,6 +436,17 @@ async function handleWriteTest(args: any): Promise<any> {
 }
 
 async function handleRunTests(args: any): Promise<any> {
+  // Validate expectation parameter
+  if (!args.expectation || !['fail', 'pass'].includes(args.expectation)) {
+    return {
+      content: [{
+        type: 'text',
+        text: '❌ Invalid expectation. Must be either "fail" or "pass".'
+      }],
+      isError: true
+    };
+  }
+  
   const cycle = getActiveCycle();
   if (!cycle) {
     return {
@@ -386,88 +457,30 @@ async function handleRunTests(args: any): Promise<any> {
     };
   }
   
-  const result = await runTests(args.testPattern, args.coverage || false);
+  const result = await runTests(args.testPattern, args.coverage || false) as TestRunResult;
   
-  // Validate expectation
-  const expectation = args.expectation;
-  const actualOutcome = result.testsFailed > 0 ? 'fail' : 'pass';
-  const expectationMet = expectation === actualOutcome;
+  // Validate expectation using utility function
+  const expectationResult = validateTestExpectation(args.expectation, result, cycle);
   
-  let phaseUpdate = cycle.phase;
-  if (expectationMet) {
-    if (expectation === 'fail' && cycle.phase === 'RED') {
-      phaseUpdate = 'RED'; // Stay in RED, ready to implement
-    } else if (expectation === 'pass' && result.testsFailed === 0) {
-      phaseUpdate = 'GREEN'; // All tests pass!
-    }
-  }
-  
+  // Update cycle state
   updateCycle(cycle.id, {
     testsPassing: result.testsPassed,
     testsFailing: result.testsFailed,
-    phase: phaseUpdate
+    phase: expectationResult.phaseUpdate
   });
   await saveState();
   
-  let statusIcon = expectationMet ? '✅' : '⚠️';
-  let message = `${statusIcon} Tests ${actualOutcome === 'fail' ? 'failed' : 'passed'} ${expectationMet ? '(as expected)' : '(unexpected!)'}\n\n`;
+  // Build message using utility functions
+  let message = createBasicTestMessage(result, expectationResult, args.testPattern);
   
-  if (args.testPattern) {
-    message += `**Test Pattern**: ${args.testPattern}\n`;
-  }
-  message += `**Tests Run**: ${result.testsRun}\n`;
-  message += `**Passed**: ${result.testsPassed}\n`;
-  message += `**Failed**: ${result.testsFailed}\n`;
-  message += `**Skipped**: ${result.testsSkipped}\n`;
-  message += `**Duration**: ${result.duration}ms\n`;
-  message += `**Phase**: ${phaseUpdate}\n\n`;
-  
-  if (!expectationMet) {
-    message += `⚠️ **Warning**: Expected tests to ${expectation} but they ${actualOutcome}ed!\n\n`;
-    
-    if (expectation === 'fail' && actualOutcome === 'pass') {
-      message += `**TDD Violation**: Tests should fail in RED phase before implementation!\n\n`;
-      message += `**Possible causes**:\n`;
-      message += `1. Test is not actually testing the new feature (test is too simple)\n`;
-      message += `2. Implementation already exists for what you're testing\n`;
-      message += `3. Test has a logic error and always passes\n`;
-      message += `4. Wrong test file or pattern being executed\n\n`;
-      message += `**Recommended actions**:\n`;
-      message += `- Review the test code to ensure it properly exercises the new feature\n`;
-      message += `- Verify the test is checking for behavior that doesn't exist yet\n`;
-      message += `- Check that you're testing the right file/function\n`;
-      message += `- Consider removing or commenting out existing implementation\n\n`;
-    } else if (expectation === 'pass' && actualOutcome === 'fail') {
-      message += `**Implementation Issue**: Tests are still failing after implementation!\n\n`;
-      message += `**Recommended actions**:\n`;
-      message += `- Review the implementation to address failing tests\n`;
-      message += `- Check the failures below for specific errors\n`;
-      message += `- Ensure implementation matches test expectations\n\n`;
-    }
+  if (!expectationResult.expectationMet) {
+    message += createExpectationWarning(args.expectation, expectationResult.actualOutcome);
   }
   
-  if (result.failures && result.failures.length > 0) {
-    message += `**Failures**:\n`;
-    result.failures.forEach(f => {
-      message += `- ${f.testName}: ${f.error}\n`;
-    });
-    message += '\n';
-  }
-  
-  // Show test output for debugging if expectation not met
-  if (!expectationMet && result.output && result.testsRun > 0) {
-    const outputLines = result.output.split('\n').slice(-20).join('\n');
-    message += `**Test Output (last 20 lines)**:\n\`\`\`\n${outputLines}\n\`\`\`\n\n`;
-  }
-  
-  if (result.coverage) {
-    message += `**Coverage**:\n`;
-    message += `- Lines: ${result.coverage.lines.percentage.toFixed(1)}%\n`;
-    message += `- Branches: ${result.coverage.branches.percentage.toFixed(1)}%\n`;
-    message += `- Functions: ${result.coverage.functions.percentage.toFixed(1)}%\n\n`;
-  }
-  
-  message += `**Next Action**: ${determineNextAction(phaseUpdate, result.testsFailed, result.testsPassed)}`;
+  message += createFailureDetails(result);
+  message += createTestOutput(result, expectationResult.expectationMet);
+  message += createCoverageInfo(result);
+  message += `**Next Action**: ${determineNextAction(expectationResult.phaseUpdate, result.testsFailed, result.testsPassed)}`;
   
   return {
     content: [{
@@ -797,19 +810,15 @@ async function handleConsult(args: any): Promise<any> {
   }
   
   try {
-    const response = await axios.post(`${OLLAMA_BASE_URL}/api/generate`, {
-      model,
-      prompt,
-      stream: false
-    }, { timeout: 60000 });
+    const answer = await apiService.callOllama(model, prompt);
     
     const consultResponse: ConsultResponse = {
       question,
-      answer: response.data.response,
+      answer,
       model,
       timestamp: new Date()
     };
-    
+
     return {
       content: [{
         type: 'text',
@@ -825,7 +834,7 @@ async function handleConsult(args: any): Promise<any> {
       content: [{
         type: 'text',
         text: `❌ Consultation failed: ${error.message}\n\n` +
-              `Make sure Ollama is running at ${OLLAMA_BASE_URL}\n` +
+              `Ollama service status: ${apiService.getCircuitState()}\n` +
               `You can proceed without consultation.`
       }],
       isError: true
@@ -1007,15 +1016,9 @@ async function handleCompareApproaches(args: any): Promise<any> {
                     `Provide pros, cons, complexity rating, and testability rating for each approach. ` +
                     `Then recommend the best approach for TDD and explain why.`;
       
-      const response = await axios.post(`${OLLAMA_BASE_URL}/api/generate`, {
-        model: 'llama2',
-        prompt,
-        stream: false
-      }, { timeout: 60000 });
-      
-      analysis = response.data.response;
+      analysis = await apiService.callOllama('llama2', prompt);
     } catch (error: any) {
-      analysis = `Consultation unavailable: ${error.message}`;
+      analysis = `Consultation unavailable (${apiService.getCircuitState()}): ${error.message}`;
     }
   } else {
     analysis = `Basic comparison of ${approaches.length} approaches based on criteria: ${criteria.join(', ')}`;
