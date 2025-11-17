@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     
     strategy:
       matrix:
@@ -22,10 +22,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
       
       - name: Install dependencies
-        run: pnpm ci
+        run: |
+          brew install pnpm
+          pnpm ci
       
       - name: Build TypeScript
         run: pnpm build
