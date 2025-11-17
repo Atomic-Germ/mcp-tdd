@@ -45,6 +45,7 @@ describe('TDDServer', () => {
     expect(toolNames).toContain('tdd_refactor');
     expect(toolNames).toContain('tdd_status');
     expect(toolNames).toContain('tdd_complete_cycle');
+    expect(toolNames).toContain('tdd_get_failure_details');
   });
 
   it('should have proper tool schemas', () => {

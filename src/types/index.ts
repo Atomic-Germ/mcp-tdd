@@ -51,6 +51,11 @@ export interface Checkpoint {
   state: any;
 }
 
+export interface FailureDetail {
+  testName: string;
+  error: string;
+}
+
 export interface TestResult {
   success: boolean;
   passed: number;
@@ -58,6 +63,7 @@ export interface TestResult {
   total: number;
   output: string;
   duration?: number;
+  failures?: FailureDetail[];
 }
 
 export interface CoverageReport {

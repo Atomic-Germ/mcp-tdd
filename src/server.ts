@@ -163,6 +163,16 @@ export class TDDServer {
           required: [],
         },
       },
+      {
+        name: 'tdd_get_failure_details',
+        description:
+          'Get detailed information about test failures from the last test run. Use this when tests fail unexpectedly to understand what went wrong.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
     ];
   }
 }

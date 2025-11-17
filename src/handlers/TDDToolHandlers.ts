@@ -82,6 +82,9 @@ export class TDDToolHandlers {
       this.stateManager.updateTestStatus(test.id, result.success ? 'passing' : 'failing');
     });
 
+    // Store the last result for later reference in tdd_get_failure_details
+    (this as any).lastTestResult = result;
+
     let nextStep = '';
     let expectationsMetMessage = '';
 
@@ -110,21 +113,65 @@ export class TDDToolHandlers {
       nextStep = 'Review test results and adjust implementation';
     }
 
+    const response: any = {
+      success: result.expectationsMet,
+      result: {
+        passed: result.passed,
+        failed: result.failed,
+        total: result.total,
+        duration: result.duration,
+        testSuccess: result.success,
+        expectationsMet: result.expectationsMet,
+      },
+      expectation: expectation || 'none',
+      expectationsMetMessage,
+      output: formatTestOutput(result),
+      nextStep,
+    };
+
+    // Add failure details hint when in GREEN phase with unexpected failures
+    if (
+      cycle.phase === 'green' &&
+      !result.success &&
+      result.failures &&
+      result.failures.length > 0
+    ) {
+      response.failureHint =
+        'Tests unexpectedly failed in GREEN phase. Use tdd_get_failure_details to see what went wrong.';
+    }
+
+    return JSON.stringify(response, null, 2);
+  }
+
+  async handleGetFailureDetails(): Promise<string> {
+    const cycle = this.stateManager.getCurrentCycle();
+    if (!cycle) {
+      throw new Error('No active TDD cycle. Run tdd_init_cycle first.');
+    }
+
+    const lastResult = (this as any).lastTestResult;
+    if (
+      !lastResult ||
+      lastResult.success ||
+      !lastResult.failures ||
+      lastResult.failures.length === 0
+    ) {
+      return JSON.stringify(
+        {
+          success: true,
+          message: 'No failing tests to report',
+        },
+        null,
+        2,
+      );
+    }
+
     return JSON.stringify(
       {
-        success: result.expectationsMet,
-        result: {
-          passed: result.passed,
-          failed: result.failed,
-          total: result.total,
-          duration: result.duration,
-          testSuccess: result.success,
-          expectationsMet: result.expectationsMet,
-        },
-        expectation: expectation || 'none',
-        expectationsMetMessage,
-        output: formatTestOutput(result),
-        nextStep,
+        success: true,
+        failureCount: lastResult.failed,
+        failures: lastResult.failures,
+        note: 'These failures indicate what needs to be fixed in the implementation. Use this feedback to guide your fix.',
       },
       null,
       2,

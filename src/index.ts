@@ -61,6 +61,9 @@ async function main() {
         case 'tdd_coverage':
           result = await handlers.handleCoverage();
           break;
+        case 'tdd_get_failure_details':
+          result = await handlers.handleGetFailureDetails();
+          break;
         default:
           throw new Error(`Unknown tool: ${name}`);
       }

@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { TestResult } from '../types/index.js';
+import { TestResult, FailureDetail } from '../types/index.js';
 
 const execAsync = promisify(exec);
 
@@ -82,6 +82,7 @@ export class TestRunner {
       failed: 0,
       total: 0,
       output,
+      failures: [],
     };
 
     if (framework === 'vitest') {
@@ -92,6 +93,8 @@ export class TestRunner {
       result.failed = failMatch ? parseInt(failMatch[1]) : 0;
       result.total = result.passed + result.failed;
       result.success = result.failed === 0 && result.total > 0;
+
+      result.failures = this.extractVitestFailures(output);
     } else if (framework === 'jest') {
       const passMatch = output.match(/(\d+) passed/);
       const failMatch = output.match(/(\d+) failed/);
@@ -100,8 +103,75 @@ export class TestRunner {
       result.failed = failMatch ? parseInt(failMatch[1]) : 0;
       result.total = result.passed + result.failed;
       result.success = result.failed === 0 && result.total > 0;
+
+      result.failures = this.extractJestFailures(output);
     }
 
     return result;
+  }
+
+  private extractVitestFailures(output: string): FailureDetail[] {
+    const failures: FailureDetail[] = [];
+
+    // Match test name followed by failure reason
+    // Vitest format: "● test name" followed by error details
+    const failureBlocks = output.split('●').slice(1);
+
+    for (const block of failureBlocks) {
+      const lines = block.split('\n');
+      if (lines.length === 0) continue;
+
+      const testName = lines[0].trim();
+      // Find the first error line after the test name
+      let errorMessage = '';
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line && !line.startsWith('at ') && line.length > 0) {
+          errorMessage = line;
+          break;
+        }
+      }
+
+      if (testName) {
+        failures.push({
+          testName: testName.split('\n')[0],
+          error: errorMessage || 'Test failed',
+        });
+      }
+    }
+
+    return failures.slice(0, 10); // Limit to 10 failures for brevity
+  }
+
+  private extractJestFailures(output: string): FailureDetail[] {
+    const failures: FailureDetail[] = [];
+
+    // Match Jest format: "● test name" followed by error details
+    const failureBlocks = output.split('●').slice(1);
+
+    for (const block of failureBlocks) {
+      const lines = block.split('\n');
+      if (lines.length === 0) continue;
+
+      const testName = lines[0].trim();
+      // Find the first error line after the test name
+      let errorMessage = '';
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line && !line.startsWith('at ') && line.length > 0) {
+          errorMessage = line;
+          break;
+        }
+      }
+
+      if (testName) {
+        failures.push({
+          testName: testName.split('\n')[0],
+          error: errorMessage || 'Test failed',
+        });
+      }
+    }
+
+    return failures.slice(0, 10); // Limit to 10 failures for brevity
   }
 }
