@@ -115,7 +115,13 @@ export class TDDServer {
         description: 'Get current TDD cycle status and recommended next action',
         inputSchema: {
           type: 'object',
-          properties: {},
+          properties: {
+            includeHistory: {
+              type: 'boolean',
+              description: 'Include full cycle history (optional)',
+              default: false,
+            },
+          },
           required: [],
         },
       },
@@ -169,7 +175,13 @@ export class TDDServer {
           'Get detailed information about test failures from the last test run. Use this when tests fail unexpectedly to understand what went wrong.',
         inputSchema: {
           type: 'object',
-          properties: {},
+          properties: {
+            includeVerbose: {
+              type: 'boolean',
+              description: 'Include verbose failure output (optional)',
+              default: false,
+            },
+          },
           required: [],
         },
       },

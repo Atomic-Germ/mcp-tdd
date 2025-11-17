@@ -151,7 +151,8 @@ export class TDDToolHandlers {
     return JSON.stringify(response, null, 2);
   }
 
-  async handleGetFailureDetails(): Promise<string> {
+  async handleGetFailureDetails(args: any = {}): Promise<string> {
+    const { includeVerbose = false } = args;
     const cycle = this.stateManager.getCurrentCycle();
     if (!cycle) {
       throw new Error('No active TDD cycle. Run tdd_init_cycle first.');
@@ -174,17 +175,19 @@ export class TDDToolHandlers {
       );
     }
 
-    return JSON.stringify(
-      {
-        success: true,
-        failureCount: this.lastTestResult.failed,
-        totalTests: this.lastTestResult.total,
-        failures: this.lastTestResult.failures,
-        note: 'These failures indicate what needs to be fixed in the implementation. Use this feedback to guide your fix.',
-      },
-      null,
-      2,
-    );
+    const response: any = {
+      success: true,
+      failureCount: this.lastTestResult.failed,
+      totalTests: this.lastTestResult.total,
+      failures: this.lastTestResult.failures,
+      note: 'These failures indicate what needs to be fixed in the implementation. Use this feedback to guide your fix.',
+    };
+
+    if (includeVerbose && this.lastTestResult.output) {
+      response.verboseOutput = this.lastTestResult.output;
+    }
+
+    return JSON.stringify(response, null, 2);
   }
 
   async handleImplement(args: any): Promise<string> {
@@ -257,7 +260,8 @@ export class TDDToolHandlers {
     );
   }
 
-  async handleStatus(): Promise<string> {
+  async handleStatus(args: any = {}): Promise<string> {
+    const { includeHistory = false } = args;
     const cycle = this.stateManager.getCurrentCycle();
 
     if (!cycle) {
@@ -272,23 +276,29 @@ export class TDDToolHandlers {
       );
     }
 
-    return JSON.stringify(
-      {
-        success: true,
-        cycle: {
-          id: cycle.id,
-          feature: cycle.feature,
-          phase: cycle.phase,
-          tests: cycle.tests.length,
-          passingTests: cycle.tests.filter(t => t.status === 'passing').length,
-          failingTests: cycle.tests.filter(t => t.status === 'failing').length,
-          checkpoints: cycle.checkpoints.length,
-        },
-        recommendation: this.getRecommendation(cycle),
+    const response: any = {
+      success: true,
+      cycle: {
+        id: cycle.id,
+        feature: cycle.feature,
+        phase: cycle.phase,
+        tests: cycle.tests.length,
+        passingTests: cycle.tests.filter(t => t.status === 'passing').length,
+        failingTests: cycle.tests.filter(t => t.status === 'failing').length,
+        checkpoints: cycle.checkpoints.length,
       },
-      null,
-      2,
-    );
+      recommendation: this.getRecommendation(cycle),
+    };
+
+    if (includeHistory && cycle.checkpoints.length > 0) {
+      response.history = cycle.checkpoints.map(cp => ({
+        timestamp: cp.timestamp,
+        phase: cp.phase,
+        description: cp.description,
+      }));
+    }
+
+    return JSON.stringify(response, null, 2);
   }
 
   async handleCompleteCycle(args: any): Promise<string> {
@@ -355,7 +365,10 @@ export class TDDToolHandlers {
     );
   }
 
-  async handleCoverage(): Promise<string> {
+  async handleCoverage(args: any = {}): Promise<string> {
+    // args parameter accepted for consistency with other handlers and MCP client compatibility
+    void args;
+
     const cycle = this.stateManager.getCurrentCycle();
     if (!cycle) {
       throw new Error('No active TDD cycle');
