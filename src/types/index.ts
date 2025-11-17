@@ -54,6 +54,8 @@ export interface Checkpoint {
 export interface FailureDetail {
   testName: string;
   error: string;
+  verboseOutput?: string;
+  suggestion?: string;
 }
 
 export interface TestResult {

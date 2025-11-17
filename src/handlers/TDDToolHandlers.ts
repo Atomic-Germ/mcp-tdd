@@ -136,8 +136,19 @@ export class TDDToolHandlers {
       result.failures &&
       result.failures.length > 0
     ) {
-      response.failureHint =
-        'Tests unexpectedly failed in GREEN phase. Use tdd_get_failure_details to see what went wrong.';
+      // For single failure in GREEN phase, provide detailed feedback directly
+      if (result.failures.length === 1) {
+        const singleFailure = result.failures[0];
+        response.singleFailure = {
+          testName: singleFailure.testName,
+          error: singleFailure.error,
+          verboseOutput: singleFailure.verboseOutput,
+          suggestion: singleFailure.suggestion,
+        };
+      } else {
+        response.failureHint =
+          'Tests unexpectedly failed in GREEN phase. Use tdd_get_failure_details to see what went wrong.';
+      }
     }
 
     return JSON.stringify(response, null, 2);

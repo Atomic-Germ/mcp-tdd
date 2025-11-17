@@ -124,19 +124,32 @@ export class TestRunner {
       const testName = lines[0].trim();
       // Find the first error line after the test name
       let errorMessage = '';
+      let verboseOutput = '';
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line && !line.startsWith('at ') && line.length > 0) {
-          errorMessage = line;
-          break;
+          if (!errorMessage) {
+            errorMessage = line;
+          }
+          verboseOutput += line + '\n';
+          // Capture up to 10 lines of context for single failures
+          if (verboseOutput.split('\n').length >= 10) break;
         }
       }
 
       if (testName) {
-        failures.push({
+        const failure: FailureDetail = {
           testName: testName.split('\n')[0],
           error: errorMessage || 'Test failed',
-        });
+        };
+
+        // Add verbose output for single failures
+        if (verboseOutput.trim()) {
+          failure.verboseOutput = verboseOutput.trim();
+          failure.suggestion = this.generateSuggestion(errorMessage, failure.testName);
+        }
+
+        failures.push(failure);
       }
     }
 
@@ -156,22 +169,72 @@ export class TestRunner {
       const testName = lines[0].trim();
       // Find the first error line after the test name
       let errorMessage = '';
+      let verboseOutput = '';
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line && !line.startsWith('at ') && line.length > 0) {
-          errorMessage = line;
-          break;
+          if (!errorMessage) {
+            errorMessage = line;
+          }
+          verboseOutput += line + '\n';
+          // Capture up to 10 lines of context for single failures
+          if (verboseOutput.split('\n').length >= 10) break;
         }
       }
 
       if (testName) {
-        failures.push({
+        const failure: FailureDetail = {
           testName: testName.split('\n')[0],
           error: errorMessage || 'Test failed',
-        });
+        };
+
+        // Add verbose output for single failures
+        if (verboseOutput.trim()) {
+          failure.verboseOutput = verboseOutput.trim();
+          failure.suggestion = this.generateSuggestion(errorMessage, failure.testName);
+        }
+
+        failures.push(failure);
       }
     }
 
     return failures.slice(0, 10); // Limit to 10 failures for brevity
+  }
+
+  private generateSuggestion(error: string, testName: string): string {
+    // Analyze error message and generate helpful suggestions
+    const lowerError = error.toLowerCase();
+
+    if (lowerError.includes('is not a function')) {
+      return 'Ensure the function is exported and has the correct name.';
+    }
+    if (
+      lowerError.includes('cannot read property') ||
+      lowerError.includes('cannot read properties')
+    ) {
+      return 'Check that object properties exist before accessing them.';
+    }
+    if (lowerError.includes('expected') && lowerError.includes('but received')) {
+      return 'Verify the logic returns the expected value.';
+    }
+    if (lowerError.includes('undefined')) {
+      return 'Check that variables are properly initialized and returned.';
+    }
+    if (lowerError.includes('nan')) {
+      return 'Verify numeric operations and type conversions.';
+    }
+    if (lowerError.includes('typeerror')) {
+      return 'Check function parameters and their types.';
+    }
+    if (lowerError.includes('syntaxerror')) {
+      return 'Fix syntax errors in the implementation.';
+    }
+
+    // Extract what the test expects from test name
+    if (testName.includes('should') || testName.includes('must')) {
+      return `Implement the functionality that "${testName.toLowerCase()}".`;
+    }
+
+    return 'Review the implementation to ensure it meets the test requirements.';
   }
 }
