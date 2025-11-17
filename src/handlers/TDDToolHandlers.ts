@@ -276,26 +276,31 @@ export class TDDToolHandlers {
       );
     }
 
+    const tests = Array.isArray(cycle.tests) ? cycle.tests : [];
+    const checkpoints = Array.isArray(cycle.checkpoints) ? cycle.checkpoints : [];
+
     const response: any = {
       success: true,
       cycle: {
-        id: cycle.id,
-        feature: cycle.feature,
-        phase: cycle.phase,
-        tests: cycle.tests.length,
-        passingTests: cycle.tests.filter(t => t.status === 'passing').length,
-        failingTests: cycle.tests.filter(t => t.status === 'failing').length,
-        checkpoints: cycle.checkpoints.length,
+        id: cycle.id || 'unknown',
+        feature: cycle.feature || 'unknown',
+        phase: cycle.phase || 'unknown',
+        tests: tests.length,
+        passingTests: tests.filter(t => t && t.status === 'passing').length,
+        failingTests: tests.filter(t => t && t.status === 'failing').length,
+        checkpoints: checkpoints.length,
       },
       recommendation: this.getRecommendation(cycle),
     };
 
-    if (includeHistory && cycle.checkpoints.length > 0) {
-      response.history = cycle.checkpoints.map(cp => ({
-        timestamp: cp.timestamp,
-        phase: cp.phase,
-        description: cp.description,
-      }));
+    if (includeHistory && checkpoints.length > 0) {
+      response.history = checkpoints
+        .filter(cp => cp && cp.timestamp && cp.phase !== undefined && cp.description !== undefined)
+        .map(cp => ({
+          timestamp: cp.timestamp,
+          phase: cp.phase,
+          description: cp.description,
+        }));
     }
 
     return JSON.stringify(response, null, 2);
@@ -386,18 +391,26 @@ export class TDDToolHandlers {
   }
 
   private getRecommendation(cycle: any): string {
-    const failingTests = cycle.tests.filter((t: any) => t.status === 'failing').length;
-    const passingTests = cycle.tests.filter((t: any) => t.status === 'passing').length;
+    try {
+      if (!cycle.tests || !Array.isArray(cycle.tests)) {
+        return 'Run tests to determine next step (tdd_run_tests)';
+      }
 
-    if (cycle.phase === 'red' && failingTests > 0) {
-      return 'Write implementation to make tests pass (tdd_implement)';
-    } else if (cycle.phase === 'green' && passingTests === cycle.tests.length) {
-      return 'Consider refactoring (tdd_refactor) or complete cycle (tdd_complete_cycle)';
-    } else if (cycle.phase === 'refactor') {
-      return 'Complete cycle (tdd_complete_cycle) or add more tests';
+      const failingTests = cycle.tests.filter((t: any) => t.status === 'failing').length;
+      const passingTests = cycle.tests.filter((t: any) => t.status === 'passing').length;
+
+      if (cycle.phase === 'red' && failingTests > 0) {
+        return 'Write implementation to make tests pass (tdd_implement)';
+      } else if (cycle.phase === 'green' && passingTests === cycle.tests.length) {
+        return 'Consider refactoring (tdd_refactor) or complete cycle (tdd_complete_cycle)';
+      } else if (cycle.phase === 'refactor') {
+        return 'Complete cycle (tdd_complete_cycle) or add more tests';
+      }
+
+      return 'Run tests to determine next step (tdd_run_tests)';
+    } catch {
+      return 'Run tests to determine next step (tdd_run_tests)';
     }
-
-    return 'Run tests to determine next step (tdd_run_tests)';
   }
 
   async handleAnalyzeTestQuality(args: any): Promise<string> {
